@@ -290,3 +290,14 @@ fn test_theme_load_dir() {
 	}
 	assert b.name == 'light'
 }
+
+fn test_theme_parse_escaped_json() {
+	content := '{
+		"name": "esc\u0061ped"
+	}'
+	t := theme_parse(content) or {
+		assert false, err.str()
+		return
+	}
+	assert t.name == 'escaped'
+}
