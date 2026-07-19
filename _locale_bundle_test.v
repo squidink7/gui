@@ -257,3 +257,12 @@ fn test_locale_load_dir() {
 	}
 	assert es.str_yes == 'Sí'
 }
+
+fn test_locale_parse_escaped_json() {
+	content := r'{"str\u0069ngs":{"o\u006b":"OK"}}'
+	loc := locale_parse(content) or {
+		assert false, err.str()
+		return
+	}
+	assert loc.str_ok == 'OK'
+}
