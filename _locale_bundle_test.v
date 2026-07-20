@@ -259,10 +259,10 @@ fn test_locale_load_dir() {
 }
 
 fn test_locale_parse_escaped_json() {
-	content := r'{"str\u0069ngs":{"o\u006b":"OK"}}'
+	content := r'{"str\u0069ngs":{"o\u006b":"ESCAPED_OK_TEST_WORKS"}}'
 	loc := locale_parse(content) or {
 		assert false, err.str()
 		return
 	}
-	assert loc.str_ok == 'OK'
+	assert loc.str_ok == 'ESCAPED_OK_TEST_WORKS'
 }
