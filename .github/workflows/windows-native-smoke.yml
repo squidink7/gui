@@ -101,6 +101,16 @@ jobs:
       with:
         path: v
         key: ${{ steps.restore-v-cache.outputs.cache-primary-key }}
+    - name: Resolve vglyph revision
+      id: vglyph
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $revision = (git ls-remote https://github.com/vlang/vglyph HEAD).Split()[0]
+        if ($LASTEXITCODE -ne 0) {
+          throw "Could not resolve vglyph revision"
+        }
+        "revision=$revision" | Add-Content -Path $env:GITHUB_OUTPUT
     - name: Restore vcpkg binary cache
       uses: actions/cache@v4
       with:
@@ -112,8 +122,9 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.vmodules/vglyph
-        key: windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-v1
+        key: windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-${{ steps.vglyph.outputs.revision }}-v2
         restore-keys: |
+          windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-
           windows-vmodules-vglyph-
     - name: Install pango and freetype
       shell: pwsh
@@ -187,8 +198,39 @@ jobs:
         if ($LASTEXITCODE -ne 0) {
           throw "pkg-config could not resolve freetype2 pango pangoft2"
         }
-    - name: Install vglyph
-      run: v install vglyph
+    - name: Ensure vglyph revision
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        function Assert-NativeCommand($Message) {
+          if ($LASTEXITCODE -ne 0) {
+            throw $Message
+          }
+        }
+        $expectedRevision = '${{ steps.vglyph.outputs.revision }}'
+        $vglyphPath = Join-Path $HOME '.vmodules\vglyph'
+        if (Test-Path (Join-Path $vglyphPath '.git')) {
+          $cachedRevision = (& git -C $vglyphPath rev-parse HEAD).Trim()
+          Assert-NativeCommand "Could not inspect cached vglyph revision"
+          if ($cachedRevision -ne $expectedRevision) {
+            Write-Host "Cached vglyph revision $cachedRevision does not match expected $expectedRevision; rebuilding."
+            Remove-Item -Recurse -Force $vglyphPath
+          }
+        } elseif (Test-Path $vglyphPath) {
+          Remove-Item -Recurse -Force $vglyphPath
+        }
+        if (-not (Test-Path $vglyphPath)) {
+          $vmodulesPath = Split-Path -Parent $vglyphPath
+          New-Item -ItemType Directory -Force -Path $vmodulesPath | Out-Null
+          git init $vglyphPath
+          Assert-NativeCommand "git init vglyph failed"
+          git -C $vglyphPath remote add origin https://github.com/vlang/vglyph
+          Assert-NativeCommand "git remote add vglyph failed"
+          git -C $vglyphPath fetch --depth 1 origin $expectedRevision
+          Assert-NativeCommand "git fetch vglyph failed"
+          git -C $vglyphPath checkout --detach FETCH_HEAD
+          Assert-NativeCommand "git checkout vglyph failed"
+        }
 
   msvc:
     name: MSVC native smoke
@@ -262,6 +304,16 @@ jobs:
       with:
         path: v
         key: ${{ steps.restore-v-cache.outputs.cache-primary-key }}
+    - name: Resolve vglyph revision
+      id: vglyph
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $revision = (git ls-remote https://github.com/vlang/vglyph HEAD).Split()[0]
+        if ($LASTEXITCODE -ne 0) {
+          throw "Could not resolve vglyph revision"
+        }
+        "revision=$revision" | Add-Content -Path $env:GITHUB_OUTPUT
     - name: Restore vcpkg binary cache
       uses: actions/cache@v4
       with:
@@ -273,8 +325,9 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.vmodules/vglyph
-        key: windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-v1
+        key: windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-${{ steps.vglyph.outputs.revision }}-v2
         restore-keys: |
+          windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-
           windows-vmodules-vglyph-
     - name: Install pango and freetype
       shell: pwsh
@@ -348,8 +401,39 @@ jobs:
         if ($LASTEXITCODE -ne 0) {
           throw "pkg-config could not resolve freetype2 pango pangoft2"
         }
-    - name: Install vglyph
-      run: v install vglyph
+    - name: Ensure vglyph revision
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        function Assert-NativeCommand($Message) {
+          if ($LASTEXITCODE -ne 0) {
+            throw $Message
+          }
+        }
+        $expectedRevision = '${{ steps.vglyph.outputs.revision }}'
+        $vglyphPath = Join-Path $HOME '.vmodules\vglyph'
+        if (Test-Path (Join-Path $vglyphPath '.git')) {
+          $cachedRevision = (& git -C $vglyphPath rev-parse HEAD).Trim()
+          Assert-NativeCommand "Could not inspect cached vglyph revision"
+          if ($cachedRevision -ne $expectedRevision) {
+            Write-Host "Cached vglyph revision $cachedRevision does not match expected $expectedRevision; rebuilding."
+            Remove-Item -Recurse -Force $vglyphPath
+          }
+        } elseif (Test-Path $vglyphPath) {
+          Remove-Item -Recurse -Force $vglyphPath
+        }
+        if (-not (Test-Path $vglyphPath)) {
+          $vmodulesPath = Split-Path -Parent $vglyphPath
+          New-Item -ItemType Directory -Force -Path $vmodulesPath | Out-Null
+          git init $vglyphPath
+          Assert-NativeCommand "git init vglyph failed"
+          git -C $vglyphPath remote add origin https://github.com/vlang/vglyph
+          Assert-NativeCommand "git remote add vglyph failed"
+          git -C $vglyphPath fetch --depth 1 origin $expectedRevision
+          Assert-NativeCommand "git fetch vglyph failed"
+          git -C $vglyphPath checkout --detach FETCH_HEAD
+          Assert-NativeCommand "git checkout vglyph failed"
+        }
     - name: Checkout gui
       uses: actions/checkout@v4
       with:
@@ -470,6 +554,16 @@ jobs:
       with:
         path: v
         key: ${{ steps.restore-v-cache.outputs.cache-primary-key }}
+    - name: Resolve vglyph revision
+      id: vglyph
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $revision = (git ls-remote https://github.com/vlang/vglyph HEAD).Split()[0]
+        if ($LASTEXITCODE -ne 0) {
+          throw "Could not resolve vglyph revision"
+        }
+        "revision=$revision" | Add-Content -Path $env:GITHUB_OUTPUT
     - name: Restore vcpkg binary cache
       uses: actions/cache@v4
       with:
@@ -481,14 +575,48 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.vmodules/vglyph
-        key: windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-v1
+        key: windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-${{ steps.vglyph.outputs.revision }}-v2
         restore-keys: |
+          windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-
           windows-vmodules-vglyph-
     - name: Install pango and freetype
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path "$env:VCPKG_BINARY_CACHE" | Out-Null
         vcpkg install pango freetype
+    - name: Ensure vglyph revision
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        function Assert-NativeCommand($Message) {
+          if ($LASTEXITCODE -ne 0) {
+            throw $Message
+          }
+        }
+        $expectedRevision = '${{ steps.vglyph.outputs.revision }}'
+        $vglyphPath = Join-Path $HOME '.vmodules\vglyph'
+        if (Test-Path (Join-Path $vglyphPath '.git')) {
+          $cachedRevision = (& git -C $vglyphPath rev-parse HEAD).Trim()
+          Assert-NativeCommand "Could not inspect cached vglyph revision"
+          if ($cachedRevision -ne $expectedRevision) {
+            Write-Host "Cached vglyph revision $cachedRevision does not match expected $expectedRevision; rebuilding."
+            Remove-Item -Recurse -Force $vglyphPath
+          }
+        } elseif (Test-Path $vglyphPath) {
+          Remove-Item -Recurse -Force $vglyphPath
+        }
+        if (-not (Test-Path $vglyphPath)) {
+          $vmodulesPath = Split-Path -Parent $vglyphPath
+          New-Item -ItemType Directory -Force -Path $vmodulesPath | Out-Null
+          git init $vglyphPath
+          Assert-NativeCommand "git init vglyph failed"
+          git -C $vglyphPath remote add origin https://github.com/vlang/vglyph
+          Assert-NativeCommand "git remote add vglyph failed"
+          git -C $vglyphPath fetch --depth 1 origin $expectedRevision
+          Assert-NativeCommand "git fetch vglyph failed"
+          git -C $vglyphPath checkout --detach FETCH_HEAD
+          Assert-NativeCommand "git checkout vglyph failed"
+        }
     - name: Install vglyph
       run: v install vglyph
     - name: Checkout gui
@@ -609,6 +737,24 @@ jobs:
       with:
         path: v
         key: ${{ steps.restore-v-cache.outputs.cache-primary-key }}
+    - name: Resolve vglyph revision
+      id: vglyph
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $revision = (git ls-remote https://github.com/vlang/vglyph HEAD).Split()[0]
+        if ($LASTEXITCODE -ne 0) {
+          throw "Could not resolve vglyph revision"
+        }
+        "revision=$revision" | Add-Content -Path $env:GITHUB_OUTPUT
+    - name: Restore V module cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.vmodules/vglyph
+        key: windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-${{ steps.vglyph.outputs.revision }}-v2
+        restore-keys: |
+          windows-vmodules-vglyph-${{ steps.install-v.outputs.revision }}-
+          windows-vmodules-vglyph-
     - name: Install MSYS2 MinGW dependencies
       uses: msys2/setup-msys2@v2
       with:
@@ -625,9 +771,28 @@ jobs:
       run: |
         v_version="$(v version)"
         echo "$v_version"
-    - name: Install vglyph
+    - name: Ensure vglyph revision
       shell: msys2 {0}
-      run: v install vglyph
+      run: |
+        set -e
+        expected_revision='${{ steps.vglyph.outputs.revision }}'
+        vglyph_path="$HOME/.vmodules/vglyph"
+        if [ -d "$vglyph_path/.git" ]; then
+          cached_revision=$(git -C "$vglyph_path" rev-parse HEAD | tr -d '[:space:]')
+          if [ "$cached_revision" != "$expected_revision" ]; then
+            echo "Cached vglyph revision $cached_revision does not match expected $expected_revision; rebuilding."
+            rm -rf "$vglyph_path"
+          fi
+        elif [ -e "$vglyph_path" ]; then
+          rm -rf "$vglyph_path"
+        fi
+        if [ ! -e "$vglyph_path" ]; then
+          mkdir -p "$(dirname "$vglyph_path")"
+          git init "$vglyph_path"
+          git -C "$vglyph_path" remote add origin https://github.com/vlang/vglyph
+          git -C "$vglyph_path" fetch --depth 1 origin "$expected_revision"
+          git -C "$vglyph_path" checkout --detach FETCH_HEAD
+        fi
     - name: Checkout gui
       uses: actions/checkout@v4
       with:
